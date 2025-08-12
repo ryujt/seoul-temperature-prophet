@@ -38,7 +38,9 @@ class DataController:
                 for line in f:
                     if line.strip():
                         record = json.loads(line)
-                        # datetime을 timestamp로 저장하여 스트리밍 시 파싱
+                        # date와 time 필드를 timestamp로 결합
+                        if 'date' in record and 'time' in record:
+                            record['timestamp'] = f"{record['date']} {record['time']}"
                         self.data.append(record)
             print(f"Loaded {len(self.data)} records from {self.file_path}")
         except FileNotFoundError:
@@ -80,7 +82,7 @@ class DataController:
             self.current_index += 1
             
             # 다음 데이터까지 대기 (속도 조절)
-            if self.current_index < len(self.data):
+            if self.current_index < len(self.data) and self.speed > 0:
                 # 실제로는 1시간 간격이지만, 시뮬레이션을 위해 짧은 간격 사용
                 sleep_time = 1.0 / self.speed  # 1초를 speed로 나눔
                 time.sleep(sleep_time)

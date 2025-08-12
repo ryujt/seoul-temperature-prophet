@@ -58,22 +58,19 @@ class ModelController:
         if should_train:
             self._train_model()
         
-        # 모델이 학습된 경우에만 예측 수행
-        if self.model is not None and self.training_phase > 0:
+        # 7일 학습(Phase 1) 이후부터만 예측 수행
+        if self.model is not None and self.training_phase >= 1:
             self._detect_anomaly(data)
     
     def _check_training_schedule(self) -> bool:
         """학습 주기 확인"""
         data_count = len(self.training_data)
         
-        if self.training_phase == 0 and data_count >= self.HOURLY_THRESHOLD_DAY:
-            # 1단계: 1일치 데이터로 최초 학습
+        if self.training_phase == 0 and data_count >= self.HOURLY_THRESHOLD_WEEK:
+            # 1단계: 1주치 데이터로 최초 학습 (1일차는 학습하지 않음)
             return True
-        elif self.training_phase == 1 and data_count >= self.HOURLY_THRESHOLD_WEEK:
-            # 2단계: 1주치 데이터로 재학습
-            return True
-        elif self.training_phase >= 2:
-            # 3단계 이후: 매월 재학습
+        elif self.training_phase >= 1:
+            # 2단계 이후: 매월 재학습
             # 마지막 학습 이후 1개월치 데이터가 쌓였는지 확인
             last_trained_count = self._get_last_trained_count()
             if data_count - last_trained_count >= self.HOURLY_THRESHOLD_MONTH:
@@ -84,19 +81,17 @@ class ModelController:
     def _get_last_trained_count(self) -> int:
         """마지막 학습 시점의 데이터 개수 계산"""
         if self.training_phase == 1:
-            return self.HOURLY_THRESHOLD_DAY
-        elif self.training_phase == 2:
             return self.HOURLY_THRESHOLD_WEEK
         else:
-            # 3단계 이후는 마지막 학습 시점 계산
-            return self.HOURLY_THRESHOLD_WEEK + (self.training_phase - 2) * self.HOURLY_THRESHOLD_MONTH
+            # 2단계 이후는 마지막 학습 시점 계산
+            return self.HOURLY_THRESHOLD_WEEK + (self.training_phase - 1) * self.HOURLY_THRESHOLD_MONTH
     
     def _train_model(self):
         """Prophet 모델 학습"""
         if not self.training_data:
             return
         
-        print(f"Training model with {len(self.training_data)} data points (Phase {self.training_phase + 1})")
+        print(f"Training model with {len(self.training_data)} data points (Phase {self.training_phase + 1}) - First training at 7 days")
         
         # DataFrame 변환
         df = pd.DataFrame(self.training_data)
@@ -115,19 +110,21 @@ class ModelController:
         self.last_training_time = datetime.now()
         self.training_phase += 1
         
-        # 모델 및 학습 데이터 저장 파일명 생성
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        model_filename = f"model_{timestamp}.pkl"
-        data_filename = f"training_data_{timestamp}.pkl"
-        
-        # OnModelUpdated 이벤트 발생 (모델과 데이터 파일명 모두 전달)
-        if self.on_model_updated:
-            self.on_model_updated({
-                'model_file': model_filename,
-                'data_file': data_filename,
-                'training_data': self.training_data.copy(),  # 현재 학습 데이터 복사본
-                'phase': self.training_phase
-            })
+        # 7일 학습(Phase 1) 이후부터 저장
+        if self.training_phase >= 1:
+            # 모델 및 학습 데이터 저장 파일명 생성
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            model_filename = f"model_{timestamp}.pkl"
+            data_filename = f"training_data_{timestamp}.pkl"
+            
+            # OnModelUpdated 이벤트 발생 (모델과 데이터 파일명 모두 전달)
+            if self.on_model_updated:
+                self.on_model_updated({
+                    'model_file': model_filename,
+                    'data_file': data_filename,
+                    'training_data': self.training_data.copy(),  # 현재 학습 데이터 복사본
+                    'phase': self.training_phase
+                })
         
         print(f"Model training completed (Phase {self.training_phase})")
     

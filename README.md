@@ -71,25 +71,26 @@ pip install prophet==1.1.5 pandas numpy
 
 ## 사용 방법
 
-### 기본 실행 (100배속)
+### 기본 실행 (최고 속도)
 ```bash
-python src/main.py
+python3 src/main.py
 ```
 
 ### 속도 조절 실행
 ```bash
-python src/main.py --speed 10.0  # 10배속
-python src/main.py --speed 1.0   # 실시간 속도
+python3 src/main.py --speed 100.0  # 100배속
+python3 src/main.py --speed 10.0   # 10배속
+python3 src/main.py --speed 1.0    # 실시간 속도
 ```
 
 ### 다른 데이터 파일 사용
 ```bash
-python src/main.py --data path/to/your/data.jsonl
+python3 src/main.py --data path/to/your/data.jsonl
 ```
 
 ### 명령줄 옵션
 - `--data`: 입력 데이터 파일 경로 (기본값: `examples/archives/seoul_last_5years_hourly.jsonl`)
-- `--speed`: 데이터 재생 속도 (기본값: 100.0, 1.0 = 실시간)
+- `--speed`: 데이터 재생 속도 (기본값: 0.0 = 최고속도, 1.0 = 실시간)
 
 ### 시스템 중지
 `Ctrl+C`를 눌러 시스템을 안전하게 중지할 수 있습니다.
@@ -134,7 +135,7 @@ Models Saved: 2, Storage Used: 1.5 MB
 
 ### 시스템 테스트
 ```bash
-python test_system.py
+python3 test_system.py
 ```
 
 테스트 스크립트는 다음을 검증합니다:

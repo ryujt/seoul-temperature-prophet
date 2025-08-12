@@ -93,7 +93,10 @@ class AnomalyDetectionSystem:
     def start(self):
         """시스템 시작"""
         print("\nStarting anomaly detection system...")
-        print(f"Data streaming speed: {self.data_controller.speed}x")
+        if self.data_controller.speed == 0:
+            print("Data streaming speed: Maximum (no delay)")
+        else:
+            print(f"Data streaming speed: {self.data_controller.speed}x")
         print("Press Ctrl+C to stop\n")
         
         self.is_running = True
@@ -155,9 +158,11 @@ class AnomalyDetectionSystem:
         
         # ModelController 상태
         mc_status = self.model_controller.get_status()
+        prediction_status = "Active" if mc_status['training_phase'] >= 1 else "Inactive (No training yet)"
         print(f"Model Phase: {mc_status['training_phase']}, "
               f"Data Count: {mc_status['data_count']}, "
-              f"Model Trained: {mc_status['model_trained']}")
+              f"Model Trained: {mc_status['model_trained']}, "
+              f"Prediction: {prediction_status}")
         
         # AlertService 상태
         alert_stats = self.alert_service.get_alert_statistics()
@@ -224,8 +229,8 @@ def main():
     parser.add_argument('--data', type=str, 
                        default='examples/archives/seoul_last_5years_hourly.jsonl',
                        help='Path to input data file (JSONL format)')
-    parser.add_argument('--speed', type=float, default=100.0,
-                       help='Data streaming speed (1.0 = real-time, 100.0 = 100x speed)')
+    parser.add_argument('--speed', type=float, default=0.0,
+                       help='Data streaming speed (0.0 = no delay/max speed, 1.0 = real-time, 100.0 = 100x speed)')
     
     args = parser.parse_args()
     
