@@ -115,12 +115,19 @@ class ModelController:
         self.last_training_time = datetime.now()
         self.training_phase += 1
         
-        # 모델 저장 파일명 생성
-        model_filename = f"model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+        # 모델 및 학습 데이터 저장 파일명 생성
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        model_filename = f"model_{timestamp}.pkl"
+        data_filename = f"training_data_{timestamp}.pkl"
         
-        # OnModelUpdated 이벤트 발생
+        # OnModelUpdated 이벤트 발생 (모델과 데이터 파일명 모두 전달)
         if self.on_model_updated:
-            self.on_model_updated(model_filename)
+            self.on_model_updated({
+                'model_file': model_filename,
+                'data_file': data_filename,
+                'training_data': self.training_data.copy(),  # 현재 학습 데이터 복사본
+                'phase': self.training_phase
+            })
         
         print(f"Model training completed (Phase {self.training_phase})")
     
@@ -178,6 +185,7 @@ class ModelController:
                     'model': self.model,
                     'training_phase': self.training_phase,
                     'training_data_count': len(self.training_data),
+                    'training_data': self.training_data,  # 학습 데이터도 함께 저장
                     'last_training_time': self.last_training_time
                 }, f)
             print(f"Model saved to {filepath}")
@@ -192,6 +200,9 @@ class ModelController:
                 self.model = saved_data['model']
                 self.training_phase = saved_data['training_phase']
                 self.last_training_time = saved_data.get('last_training_time')
+                # 저장된 학습 데이터가 있으면 로드
+                if 'training_data' in saved_data:
+                    self.training_data = saved_data['training_data']
             print(f"Model loaded from {filepath}")
         except Exception as e:
             print(f"Error loading model: {e}")

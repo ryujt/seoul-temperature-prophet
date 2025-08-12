@@ -68,16 +68,27 @@ class AnomalyDetectionSystem:
         # AlertService.Notify 호출
         self.alert_service.notify(anomaly_info)
     
-    def _handle_on_model_updated(self, filename: str):
+    def _handle_on_model_updated(self, update_info: Dict[str, Any]):
         """ModelController.OnModelUpdated 이벤트 처리"""
         # Storage.SaveModel 호출
         model_data = {
             'model': self.model_controller.model,
             'training_phase': self.model_controller.training_phase,
             'training_data_count': len(self.model_controller.training_data),
+            'training_data': self.model_controller.training_data,
             'last_training_time': self.model_controller.last_training_time
         }
-        self.storage.save_model(model_data, filename)
+        
+        # 모델 저장
+        self.storage.save_model(model_data, update_info['model_file'])
+        
+        # 학습 데이터 별도 저장
+        self.storage.save_training_data(
+            update_info['training_data'], 
+            update_info['data_file']
+        )
+        
+        print(f"Phase {update_info['phase']} training completed - Model and training data saved")
     
     def start(self):
         """시스템 시작"""
@@ -157,6 +168,7 @@ class AnomalyDetectionSystem:
         # Storage 상태
         storage_info = self.storage.get_storage_info()
         print(f"Models Saved: {storage_info['model_count']}, "
+              f"Training Data Saved: {storage_info['training_data_count']}, "
               f"Storage Used: {storage_info['total_size_mb']} MB")
         
         print("=" * 60)
