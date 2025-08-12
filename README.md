@@ -19,7 +19,7 @@ pip install prophet pandas jsonlines matplotlib
 
 ### 3. 모델 학습 및 저장 (최초 1회)
 ```bash
-python3 prepare.py
+python3 examples/temp_predic/prepare.py
 ```
 이 명령을 실행하면 `trained_model.pkl`과 `model_metadata.json` 파일이 생성됩니다.
 
@@ -27,17 +27,17 @@ python3 prepare.py
 
 ### 간단한 예제 실행
 ```bash
-python3 simple_predictor.py
+python3 examples/temp_predic/simple_predictor.py
 ```
 
 ### 전체 테스트 실행
 ```bash
-python3 test_predictor.py
+python3 examples/temp_predic/test_predictor.py
 ```
 
 ### 대화형 모드 실행
 ```bash
-python3 test_predictor.py --interactive
+python3 examples/temp_predic/est_predictor.py --interactive
 ```
 
 ## 파일 구조
@@ -100,7 +100,7 @@ print(f"예측 범위: {result['lower_bound']}°C ~ {result['upper_bound']}°C")
 from temperature_predictor import TemperaturePredictor
 
 # 모델 초기화 및 학습
-predictor = TemperaturePredictor('examples/archives/seoul_last_5years_hourly.jsonl')
+predictor = TemperaturePredictor('../archives/seoul_last_5years_hourly.jsonl')
 predictor.load_data()
 predictor.train_model()
 

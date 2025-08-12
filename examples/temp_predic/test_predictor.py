@@ -139,7 +139,7 @@ def interactive_prediction():
         print("모델 준비 완료!\n")
     else:
         # 예측 모델 초기화 및 학습
-        predictor = TemperaturePredictor('examples/archives/seoul_last_5years_hourly.jsonl')
+        predictor = TemperaturePredictor('../archives/seoul_last_5years_hourly.jsonl')
         print("\n모델 준비 중...")
         predictor.load_data()
         predictor.train_model()
