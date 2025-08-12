@@ -54,12 +54,18 @@ def prepare_and_save_model(data_file='examples/archives/seoul_last_5years_hourly
     
     # 2. 모델 학습
     print("\n2. Prophet 모델 학습 중...")
+    print("   - 최적화 설정: CPU 기반 고속 학습 모드")
     model = Prophet(
         yearly_seasonality=True,
         weekly_seasonality=True,
         daily_seasonality=True,
         changepoint_prior_scale=0.05,
         seasonality_prior_scale=10.0,
+        # 성능 최적화 설정
+        mcmc_samples=0,  # MCMC 샘플링 비활성화 (MAP 추정만 사용, 훨씬 빠름)
+        uncertainty_samples=100,  # 불확실성 샘플 수 감소 (기본값: 1000)
+        n_changepoints=25,  # 변경점 수 (기본값: 25)
+        stan_backend='CMDSTANPY'  # CmdStanPy 백엔드 명시
     )
     
     model.fit(data)
@@ -121,6 +127,11 @@ def prepare_and_save_model(data_file='examples/archives/seoul_last_5years_hourly
             daily_seasonality=True,
             changepoint_prior_scale=0.05,
             seasonality_prior_scale=10.0,
+            # 성능 최적화 설정 (평가용도 동일하게)
+            mcmc_samples=0,
+            uncertainty_samples=100,
+            n_changepoints=25,
+            stan_backend='CMDSTANPY'
         )
         eval_model.fit(train_data)
         
