@@ -71,6 +71,7 @@ venv.bak/
 # Project specific
 trained_model.pkl
 model_metadata.json
+*.pkl
 *.log
 
 # Jupyter Notebook
