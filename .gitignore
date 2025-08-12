@@ -95,4 +95,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-logs/alerts_20250812.jsonl
+
+# Prophet anomaly detection system outputs
+models/
+logs/
