@@ -11,6 +11,7 @@ from prophet import Prophet
 from datetime import datetime
 import warnings
 import os
+import time
 warnings.filterwarnings('ignore')
 
 
@@ -26,9 +27,12 @@ def prepare_and_save_model(data_file='examples/archives/seoul_last_5years_hourly
         metadata_file: 모델 메타데이터 파일 경로
     """
     
+    start_time = time.time()
+    
     print("="*60)
     print("Prophet 모델 학습 및 저장")
     print("="*60)
+    print(f"시작 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # 1. 데이터 로드
     print("\n1. 데이터 로드 중...")
@@ -178,9 +182,14 @@ def prepare_and_save_model(data_file='examples/archives/seoul_last_5years_hourly
     print(f"   - 메타데이터 저장 완료: {metadata_file}")
     
     # 5. 결과 요약
+    end_time = time.time()
+    execution_time = end_time - start_time
+    
     print("\n" + "="*60)
     print("학습 완료!")
     print("="*60)
+    print(f"완료 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"총 수행 시간: {execution_time:.2f}초 ({execution_time/60:.1f}분)")
     print(f"모델 파일: {model_file} ({os.path.getsize(model_file) / 1024 / 1024:.1f} MB)")
     print(f"메타데이터: {metadata_file}")
     
