@@ -3,7 +3,7 @@
 ## 1. 개요
 
 본 시스템은 **Facebook Prophet** 라이브러리를 기반으로 실시간 이상탐지 기능을 구현한다.
-시간 단위 데이터가 순차적으로 유입되며, 주기별 재학습 전략을 적용하고 예측 범위를 벗어나는 이상치 발생 시 **알림**을 제공한다.
+시간 단위 데이터가 순차적으로 유입되며, 예측 범위를 벗어나는 이상치 발생 시 **알림**을 제공한다.
 
 ---
 
@@ -12,7 +12,6 @@
 * 시간 단위 데이터 스트리밍 처리
 * Prophet 기반 이상탐지 및 계절성(연간·주간) 처리
 * 이상치 발생 시 `OnAnomaly` 이벤트 발생
-* 학습 주기별 모델 갱신 및 저장
 
 ---
 
@@ -34,20 +33,14 @@
 
 ### 3.2 모델 컨트롤 모듈
 
-* **책임**: 데이터 학습, 예측, 이상치 탐지, 모델 저장
-* **학습 주기 전략**:
-  1. **최초 학습**: 1일치 데이터 수집 후 학습
-  2. **2단계**: 1주치 데이터 수집 후 재학습
-  3. **3단계 및 이후**: 1개월치 데이터 수집 후 재학습
+* **책임**: 예측, 이상치 탐지
+* **입력 파일**: `trained_model.pkl`
 * **기능**:
   1. Prophet 모델 초기화 (`yearly_seasonality=True`, `weekly_seasonality=True`)
-  2. 주기별 배치 학습 (이전 모델을 이어 학습하지 않고 전체 재학습)
-  3. 예측 시점과 실제 데이터 비교
+  2. 예측 시점과 실제 데이터 비교
   4. 예측 범위(신뢰구간) 이탈 시 `OnAnomaly` 이벤트 발생
-  5. 매 학습 완료 후 모델 파일을 저장 (`YYYY-MM-DD.pkl`)
 * **출력 이벤트**:
   * `OnAnomaly`
-  * `OnModelUpdated`
 
 ---
 
@@ -55,13 +48,12 @@
 
 ```
 master: DataController
-Object: DataController, ModelController, Storage, AlertService
+Object: DataController, ModelController, AlertService
 
 DataController.OnCreate --> DataController.LoadModel
 DataController.Start --> DataController.RunTimer
 DataController.OnData --> ModelController.Predict
 ModelController.OnAnomaly --> AlertService.Notify
-ModelController.OnModelUpdated --> Storage.SaveModel
 ```
 
 ---
@@ -72,7 +64,6 @@ ModelController.OnModelUpdated --> Storage.SaveModel
 src/
   data_controller.py      # 데이터 로딩 및 스트리밍
   model_controller.py     # Prophet 기반 학습/예측/이상탐지
-  storage.py               # 모델 파일 저장
   main.py                  # 시스템 초기화 및 실행
 ```
 

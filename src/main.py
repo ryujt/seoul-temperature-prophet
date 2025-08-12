@@ -9,7 +9,6 @@ import time
 from typing import Dict, Any
 from data_controller import DataController
 from model_controller import ModelController
-from storage import Storage
 from alert_service import AlertService
 
 
@@ -17,11 +16,12 @@ class AnomalyDetectionSystem:
     """Prophet 기반 실시간 이상탐지 시스템"""
     
     def __init__(self, data_file: str = 'examples/archives/seoul_last_5years_hourly.jsonl', 
-                 speed: float = 100.0):
+                 speed: float = 100.0, model_file: str = 'trained_model.pkl'):
         """
         Args:
             data_file: 입력 데이터 파일 경로
             speed: 데이터 재생 속도 (1.0 = 실시간, 100.0 = 100배속)
+            model_file: 사전 훈련된 모델 파일 경로
         """
         print("=" * 80)
         print("Prophet-based Real-time Anomaly Detection System")
@@ -29,8 +29,7 @@ class AnomalyDetectionSystem:
         
         # 모듈 초기화
         self.data_controller = DataController(file_path=data_file, speed=speed)
-        self.model_controller = ModelController(confidence_interval=0.95)
-        self.storage = Storage(storage_path='models')
+        self.model_controller = ModelController(confidence_interval=0.95, model_file=model_file)
         self.alert_service = AlertService(log_path='logs', threshold_deviation=5.0)
         
         # 이벤트 연결 (Job Flow Diagram 구현)
@@ -53,9 +52,6 @@ class AnomalyDetectionSystem:
         # ModelController.OnAnomaly --> AlertService.Notify
         self.model_controller.on_anomaly = self._handle_on_anomaly
         
-        # ModelController.OnModelUpdated --> Storage.SaveModel
-        self.model_controller.on_model_updated = self._handle_on_model_updated
-        
         print("Event handlers connected")
     
     def _handle_on_data(self, data: Dict[str, Any]):
@@ -68,28 +64,6 @@ class AnomalyDetectionSystem:
         # AlertService.Notify 호출
         self.alert_service.notify(anomaly_info)
     
-    def _handle_on_model_updated(self, update_info: Dict[str, Any]):
-        """ModelController.OnModelUpdated 이벤트 처리"""
-        # Storage.SaveModel 호출
-        model_data = {
-            'model': self.model_controller.model,
-            'training_phase': self.model_controller.training_phase,
-            'training_data_count': len(self.model_controller.training_data),
-            'training_data': self.model_controller.training_data,
-            'last_training_time': self.model_controller.last_training_time
-        }
-        
-        # 모델 저장
-        self.storage.save_model(model_data, update_info['model_file'])
-        
-        # 학습 데이터 별도 저장
-        self.storage.save_training_data(
-            update_info['training_data'], 
-            update_info['data_file']
-        )
-        
-        print(f"Phase {update_info['phase']} training completed - Model and training data saved")
-    
     def start(self):
         """시스템 시작"""
         print("\nStarting anomaly detection system...")
@@ -101,8 +75,10 @@ class AnomalyDetectionSystem:
         
         self.is_running = True
         
-        # 이전 모델 로드 시도
-        self._load_previous_model()
+        # 사전 훈련된 모델 로드
+        if not self.model_controller.load_trained_model():
+            print("ERROR: Failed to load trained model. System cannot start.")
+            return
         
         # 데이터 스트리밍 시작
         self.data_controller.start()
@@ -128,20 +104,6 @@ class AnomalyDetectionSystem:
         
         print("System stopped successfully")
     
-    def _load_previous_model(self):
-        """이전 모델 로드 시도"""
-        latest_model = self.storage.get_latest_model()
-        if latest_model:
-            print(f"Found previous model: {latest_model}")
-            model_data = self.storage.load_model(latest_model)
-            if model_data:
-                self.model_controller.model = model_data['model']
-                self.model_controller.training_phase = model_data['training_phase']
-                self.model_controller.last_training_time = model_data.get('last_training_time')
-                print("Previous model loaded successfully")
-        else:
-            print("No previous model found. Starting fresh.")
-    
     def _print_status(self):
         """현재 상태 출력"""
         if not self.is_running:
@@ -158,10 +120,8 @@ class AnomalyDetectionSystem:
         
         # ModelController 상태
         mc_status = self.model_controller.get_status()
-        prediction_status = "Active" if mc_status['training_phase'] >= 1 else "Inactive (No training yet)"
-        print(f"Model Phase: {mc_status['training_phase']}, "
-              f"Data Count: {mc_status['data_count']}, "
-              f"Model Trained: {mc_status['model_trained']}, "
+        prediction_status = "Active" if mc_status['model_loaded'] else "Inactive (No model loaded)"
+        print(f"Model Loaded: {mc_status['model_loaded']}, "
               f"Prediction: {prediction_status}")
         
         # AlertService 상태
@@ -169,12 +129,6 @@ class AnomalyDetectionSystem:
         print(f"Total Alerts: {alert_stats['total_alerts']}")
         if alert_stats['by_level']:
             print(f"Alert Levels: {alert_stats['by_level']}")
-        
-        # Storage 상태
-        storage_info = self.storage.get_storage_info()
-        print(f"Models Saved: {storage_info['model_count']}, "
-              f"Training Data Saved: {storage_info['training_data_count']}, "
-              f"Storage Used: {storage_info['total_size_mb']} MB")
         
         print("=" * 60)
     
@@ -188,10 +142,9 @@ class AnomalyDetectionSystem:
         dc_status = self.data_controller.get_progress()
         print(f"Total Data Processed: {dc_status['current_index']}/{dc_status['total_records']}")
         
-        # 모델 학습 통계
+        # 모델 상태
         mc_status = self.model_controller.get_status()
-        print(f"Final Model Phase: {mc_status['training_phase']}")
-        print(f"Total Training Data: {mc_status['data_count']} records")
+        print(f"Model Loaded: {mc_status['model_loaded']}")
         
         # 알림 통계
         alert_stats = self.alert_service.get_alert_statistics()
@@ -231,11 +184,13 @@ def main():
                        help='Path to input data file (JSONL format)')
     parser.add_argument('--speed', type=float, default=0.0,
                        help='Data streaming speed (0.0 = no delay/max speed, 1.0 = real-time, 100.0 = 100x speed)')
+    parser.add_argument('--model', type=str, default='trained_model.pkl',
+                       help='Path to pre-trained model file (PKL format)')
     
     args = parser.parse_args()
     
     # 시스템 초기화 및 실행
-    system = AnomalyDetectionSystem(data_file=args.data, speed=args.speed)
+    system = AnomalyDetectionSystem(data_file=args.data, speed=args.speed, model_file=args.model)
     system.start()
 
 
