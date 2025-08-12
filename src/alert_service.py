@@ -22,10 +22,10 @@ class AlertService:
         """
         Args:
             log_path: 알림 로그 저장 경로
-            threshold_deviation: 임계 편차 (이 값 이상이면 CRITICAL)
+            threshold_deviation: 기본 임계 편차 (동적 임계값이 없을 때 사용)
         """
         self.log_path = log_path
-        self.threshold_deviation = threshold_deviation
+        self.default_threshold_deviation = threshold_deviation
         self.alert_history: List[Dict[str, Any]] = []
         self._ensure_log_path()
         
@@ -84,19 +84,31 @@ class AlertService:
     
     def _determine_alert_level(self, anomaly_info: Dict[str, Any]) -> AlertLevel:
         """
-        알림 수준 결정
+        알림 수준 결정 (학습 데이터 기반 동적 임계값 사용)
         
         Returns:
             AlertLevel 열거형 값
         """
         deviation = anomaly_info['deviation']
         
-        if deviation >= self.threshold_deviation:
-            return AlertLevel.CRITICAL
-        elif deviation >= self.threshold_deviation * 0.5:
-            return AlertLevel.WARNING
+        # 동적 임계값이 있는 경우 사용
+        if 'thresholds' in anomaly_info and anomaly_info['thresholds'] is not None:
+            thresholds = anomaly_info['thresholds']
+            
+            if deviation >= thresholds['critical_threshold']:
+                return AlertLevel.CRITICAL
+            elif deviation >= thresholds['warning_threshold']:
+                return AlertLevel.WARNING
+            else:
+                return AlertLevel.INFO
         else:
-            return AlertLevel.INFO
+            # 기본 임계값 사용 (하위 호환성)
+            if deviation >= self.default_threshold_deviation:
+                return AlertLevel.CRITICAL
+            elif deviation >= self.default_threshold_deviation * 0.5:
+                return AlertLevel.WARNING
+            else:
+                return AlertLevel.INFO
     
     def _generate_alert_id(self) -> str:
         """

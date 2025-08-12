@@ -61,6 +61,46 @@ def prepare_and_save_model(data_file='examples/archives/seoul_last_5years_hourly
     model.fit(data)
     print("   - 모델 학습 완료!")
     
+    # 2.1 편차 통계 계산
+    print("   - 학습 데이터 편차 통계 계산 중...")
+    forecast_train = model.predict(data[['ds']])
+    actual_values = data['y'].values
+    predicted_values = forecast_train['yhat'].values
+    
+    # 절대 편차 계산
+    deviations = abs(actual_values - predicted_values)
+    deviations_series = pd.Series(deviations)
+    
+    # 통계 계산
+    deviation_stats = {
+        'mean': float(deviations_series.mean()),
+        'std': float(deviations_series.std()),
+        'median': float(deviations_series.median()),
+        'q25': float(deviations_series.quantile(0.25)),
+        'q75': float(deviations_series.quantile(0.75)),
+        'q90': float(deviations_series.quantile(0.90)),
+        'q95': float(deviations_series.quantile(0.95)),
+        'q99': float(deviations_series.quantile(0.99)),
+        'max': float(deviations_series.max()),
+        'count': len(deviations_series)
+    }
+    
+    # 임계값 계산 (통계적 기준)
+    thresholds = {
+        'info_threshold': deviation_stats['q75'],      # 75분위수: 일반적 변동
+        'warning_threshold': deviation_stats['q90'],   # 90분위수: 주의 필요
+        'critical_threshold': deviation_stats['q95']   # 95분위수: 심각한 이상
+    }
+    
+    print(f"   - 편차 통계:")
+    print(f"     평균: {deviation_stats['mean']:.2f}°C")
+    print(f"     표준편차: {deviation_stats['std']:.2f}°C") 
+    print(f"     중앙값: {deviation_stats['median']:.2f}°C")
+    print(f"   - 계산된 임계값:")
+    print(f"     INFO: {thresholds['info_threshold']:.2f}°C (75%)")
+    print(f"     WARNING: {thresholds['warning_threshold']:.2f}°C (90%)")
+    print(f"     CRITICAL: {thresholds['critical_threshold']:.2f}°C (95%)")
+    
     # 3. 모델 평가 (옵션)
     print("\n3. 모델 성능 평가...")
     test_size = 100
@@ -124,6 +164,8 @@ def prepare_and_save_model(data_file='examples/archives/seoul_last_5years_hourly
             'changepoint_prior_scale': 0.05,
             'seasonality_prior_scale': 10.0,
         },
+        'deviation_stats': deviation_stats,
+        'thresholds': thresholds,
         'performance': {
             'mae': float(mae) if mae is not None else None,
             'rmse': float(rmse) if rmse is not None else None,
